@@ -465,9 +465,8 @@ file_after = "./dataset/train/Relaxed/xxx.csv"   # 干预后
 
 ## 📝 注意事项
 
-1. **API 密钥安全**：请勿将包含真实 API 密钥的 `config.py` 上传到公开仓库。
-2. **模型一致性**：`Real_Time_EEG_Predictor.py` 中的模型定义必须与 `main.py` 中的完全一致，否则无法加载权重。
-3. **采样率**：本项目的 EEG 采样率固定为 **202 Hz**，使用不同采样率的数据需要重新调整参数。
-4. **Suno API 费用**：Suno API 为付费服务，每次调用会生成 2 首音乐，请注意用量和费用。
-5. **GPU 加速**：推荐使用 CUDA GPU 进行训练；推理阶段 CPU 也能正常运行。
-6. **生产部署**：请勿在生产环境中使用 Flask 自带的开发服务器，建议使用 Gunicorn + Nginx。
+1. **模型一致性**：`Real_Time_EEG_Predictor.py` 中的模型定义必须与 `main.py` 中的完全一致，否则无法加载权重。
+2. **采样率**：本项目的 EEG 采样率固定为 **202 Hz**，使用不同采样率的数据需要重新调整参数。
+3. **Suno API 费用**：Suno API 为付费服务，每次调用会生成 2 首音乐，请注意用量和费用。
+4. **GPU 加速**：推荐使用 CUDA GPU 进行训练；推理阶段 CPU 也能正常运行。
+5. **生产部署**：请勿在生产环境中使用 Flask 自带的开发服务器，建议使用 Gunicorn + Nginx。
