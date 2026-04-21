@@ -1,0 +1,38 @@
+# ================================================
+# 脑电情绪识别音乐干预系统 - Python 依赖包
+# ================================================
+
+#conda create -n eeg_music_env python=3.10
+#conda activate eeg_music_env
+#pip install -r requirements.txt
+
+# Web 框架
+Flask>=2.3.0
+Werkzeug>=2.3.0
+
+# 数据处理
+pandas>=1.5.0
+numpy>=1.24.0
+
+# 信号处理
+scipy>=1.10.0
+
+# 机器学习工具
+scikit-learn>=1.2.0
+
+# 深度学习框架
+torch>=2.0.0
+
+# HTTP 请求（用于 Suno API）
+requests>=2.31.0
+
+# 进度条显示
+tqdm>=4.65.0
+
+# 可视化
+matplotlib>=3.7.0
+
+# 串口通信（用于实时采集）
+pyserial>=3.5
+
+

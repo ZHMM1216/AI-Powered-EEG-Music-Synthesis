@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroBeats | EEG-Based Music Intervention System</title>
+    <meta name="description" content="AI Music Generation System Based on EEG Signals - Analyze your emotional state and generate personalized music">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2fe;
+            --primary-glow: rgba(0, 242, 254, 0.4);
+            --secondary: #4facfe;
+            --accent-pink: #ff0080;
+            --accent-green: #00ff88;
+            --accent-orange: #ff6b35;
+            --accent-yellow: #ffd93d;
+            --purple: #7b2cbf;
+            --deep-purple: #240046;
+            --bg-dark: #0a0a1a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --text-muted: rgba(255, 255, 255, 0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0f0f2f 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+
+        /* 动态背景 */
+        #neuralBackground {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 步骤指示器 */
+        .steps-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 40px;
+            gap: 0; /* 移除gap，用步骤项固定宽度来控制间距 */
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            width: 180px; /* 固定宽度 */
+            text-align: center;
+        }
+
+        .step-item::after {
+            content: '';
+            position: absolute;
+            top: 23px; /* 圆圈垂直中心 */
+            left: calc(50% + 24px); /* 紧贴圆圈右边缘 */
+            width: calc(100% - 48px); /* 步骤宽度 - 圆圈直径 */
+            height: 3px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
+            border-radius: 2px;
+            z-index: 0;
+        }
+
+        .step-item:last-child::after {
+            display: none;
+        }
+
+        .step-circle {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-circle {
+            background: rgba(0, 242, 254, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .step-item.active .step-label {
+            color: var(--primary);
+        }
+
+        .step-item.completed .step-circle {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .step-item.completed .step-label {
+            color: var(--primary);
+        }
+
+        .step-item.completed::after {
+            background: linear-gradient(90deg, var(--primary), rgba(0, 242, 254, 0.6));
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        /* 系统状态徽章 */
+        .status-badge {
+            position: absolute;
+            padding: 8px 16px;
+            background: rgba(10, 10, 26, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-badge.top-right { top: -20px; right: 20px; }
+        .status-badge.bottom-left { bottom: -20px; left: 20px; }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: blink 2s infinite;
+        }
+
+        .status-dot.green-glow {
+             background: var(--accent-green);
+             box-shadow: 0 0 15px var(--accent-green), 0 0 5px #fff;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 增强的拖拽区域背景 */
+        .drop-bg-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 254, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            z-index: 0;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        
+        .drop-zone:hover .drop-bg-pattern {
+            opacity: 1;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 32px var(--primary-glow);
+        }
+
+        .logo-icon svg {
+            width: 28px; height: 28px;
+            color: #0a0a1a;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 8px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            position: relative;
+            width: 100%;
+            padding-top: 40px;
+        }
+
+        /* 仪表盘布局行 */
+        .dashboard-row {
+            display: flex;
+            justify-content: center;
+            align-items: stretch; /* 强制等高 */
+            gap: 40px; /* 稍微减小间距 */
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+            transition: all 0.5s ease;
+        }
+
+        /* 结果展示时的全屏模式 */
+        .dashboard-row.fullscreen-mode {
+            max-width: 1200px;
+        }
+
+        .dashboard-row.fullscreen-mode .floating-widget {
+            display: none;
+        }
+
+        .dashboard-row.fullscreen-mode .center-panel {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* 中间面板容器 */
+        .center-panel {
+            flex: 0 0 auto;
+            width: 520px;
+            position: relative;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.5s ease, max-width 0.5s ease;
+        }
+
+        /* 统一卡片高度属性 */
+        .floating-widget, .upload-card, .loading-card {
+            min-height: 480px; /* 设定统一最小高度 */
+            height: 100%; /* 填满 flex item */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* 内容垂直分布 */
+        }
+        
+        .upload-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            position: relative;
+            /* overflow: hidden;  <-- REMOVED to show badges */
+            
+            /* 渐变描边 */
+            border: 1px solid transparent;
+            background-clip: padding-box, border-box;
+            background-origin: padding-box, border-box;
+            background-image: 
+                linear-gradient(var(--glass), var(--glass)),
+                linear-gradient(135deg, rgba(0,242,254,0.3), rgba(255,0,128,0.3));
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Adjust widget layout for stretch */
+        .floating-widget {
+            justify-content: flex-start; /* Widgets stick to top */
+        }
+
+
+
+        /* 结果区域特殊处理：如果结果很宽，可能需要调整布局，但这里先保持卡片宽度一致 */
+        .result-container {
+            width: 100%;
+            /* 结果显示时可能需要覆盖更宽的区域，使用绝对定位或模态框可能更好，
+               但为了保持布局稳定，我们让结果容器也放在中间，或者让它扩展 */
+            max-width: 1200px; /* 允许结果比上传卡片宽 */
+        }
+        
+        /* 当结果显示时，侧边栏可能需要调整。
+           简单起见，结果显示时可以隐藏侧边栏，或者让侧边栏挤到两边。
+           这里我们保持侧边栏显示。 */
+
+        /* 装饰性侧边组件 - 全息数据面板风格 */
+        .floating-widget {
+            position: relative;
+            top: auto; left: auto; right: auto; transform: none;
+            width: 350px;
+            height: 100%; /* Stretch height */
+            min-height: 500px; /* Unified height */
+
+            background: rgba(13, 13, 35, 0.7);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 242, 254, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 8px; /* 圆角边框 */
+            padding: 30px;
+            padding-bottom: 0; /* 底部无内边距 */
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+            transition: all 0.3s ease;
+            overflow: hidden; /* 确保内容不溢出 */
+        }
+
+        .floating-widget::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 8px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* 装饰角标 */
+        .tech-corner {
+            position: absolute;
+            width: 10px; height: 10px;
+            border: 2px solid var(--primary);
+            transition: all 0.3s;
+        }
+        .tech-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+        .tech-corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+        .tech-corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+        .tech-corner.br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+        .floating-widget.left { 
+            animation: breathe 6s ease-in-out infinite;
+        }
+        
+        .floating-widget.right { 
+            animation: breathe 6s ease-in-out infinite reverse; 
+        }
+
+        /* 呼吸动画 */
+        @keyframes breathe {
+            0%, 100% { transform: translateY(0) scale(1); border-color: rgba(0, 242, 254, 0.2); }
+            50% { transform: translateY(-5px) scale(1.01); border-color: rgba(0, 242, 254, 0.4); }
+        }
+
+        @media (max-width: 1600px) {
+             /* 屏幕稍小的时候自动缩小一点，防止重叠 */
+            .floating-widget { width: 300px; padding: 24px 24px 0 24px; }
+        }
+
+        @media (max-width: 1400px) {
+            .floating-widget { display: none; }
+        }
+
+        .widget-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem; /* 增大标题 */
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid rgba(0, 242, 254, 0.1);
+            padding-bottom: 12px;
+        }
+
+        .widget-title::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            border-radius: 50%;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1rem; /* 增大文字 */
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            font-size: 1.2rem; /* 增大数值 */
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+
+        .data-bar-bg {
+            height: 6px; /* 加粗进度条 */
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .data-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary)); /* 渐变色 */
+            border-radius: 3px;
+            position: relative;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .data-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 10px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        .widget-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .widget-section .data-group:last-child {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin-top: 20px;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        /* 迷你波形图 */
+        .mini-visualizer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 8px;
+            width: calc(100% + 60px); /* 扩展到容器两侧 */
+            margin-left: -30px; /* 抵消父容器的 padding */
+            margin-right: -30px;
+            height: 180px;
+            margin-top: auto;
+            padding: 0 20px; /* 内部留出一点间距 */
+            background: linear-gradient(to top, rgba(0, 242, 254, 0.05), transparent);
+        }
+
+        .visualizer-bar {
+            flex: 1;
+            background: var(--primary); 
+            box-shadow: 0 0 15px var(--primary);
+            opacity: 0.9;
+            border-radius: 4px 4px 0 0;
+            animation: sound-wave 2.5s ease-in-out infinite alternate; /* 放慢跳动频率 */
+            min-height: 20px;
+        }
+
+        /* 为不同柱子添加不同延迟，产生更自然的波动 */
+        .visualizer-bar:nth-child(1) { animation-delay: 0s; }
+        .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
+        .visualizer-bar:nth-child(3) { animation-delay: 0.3s; }
+        .visualizer-bar:nth-child(4) { animation-delay: 0.45s; }
+        .visualizer-bar:nth-child(5) { animation-delay: 0.6s; }
+        .visualizer-bar:nth-child(6) { animation-delay: 0.75s; }
+        .visualizer-bar:nth-child(7) { animation-delay: 0.9s; }
+        .visualizer-bar:nth-child(8) { animation-delay: 1.05s; }
+
+        @keyframes sound-wave {
+            0% { height: 10%; opacity: 0.5; }
+            100% { height: 100%; opacity: 1; box-shadow: 0 0 25px var(--primary); }
+        }
+
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            padding-top: 40px;
+            color: rgba(255, 255, 255, 0.5); /* 提高亮度，解决过暗问题 */
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .footer span { color: var(--primary); }
+
+        /* 上传卡片 */
+        .upload-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 48px;
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: fadeInUp 0.8s ease;
+            transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .upload-card.hidden {
+            display: none;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 拖拽区域 */
+        .drop-zone {
+            border: 2px dashed var(--glass-border);
+            border-radius: 20px;
+            padding: 48px 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drop-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, var(--primary-glow), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(0, 242, 254, 0.05);
+        }
+        
+        /* 雷达扫描动画 */
+        .radar-scan {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at center, rgba(0, 242, 254, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        
+        .drop-zone:hover .radar-scan {
+            opacity: 1;
+            animation: pulse-radar 2s infinite;
+        }
+
+        @keyframes pulse-radar {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+            50% { opacity: 0.3; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+
+        .drop-zone:hover::before,
+        .drop-zone.dragover::before {
+            opacity: 1;
+        }
+
+        .drop-icon {
+            width: 80px; height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(79, 172, 254, 0.1));
+            border-radius: 20px;
+            justify-content: center;
+            transition: all 0.4s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .drop-zone:hover .drop-icon {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px var(--primary-glow);
+        }
+
+        .drop-icon svg {
+            width: 40px; height: 40px;
+            color: var(--primary);
+        }
+
+        .drop-text {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .drop-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* 文件已选择视图 */
+        .file-selected-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .file-selected-view.active {
+            display: flex;
+        }
+
+        .file-icon-large {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 20px var(--primary-glow));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .selected-filename {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 4px;
+            text-align: center;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .eeg-preview-container {
+            width: 100%;
+            height: 80px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        
+        .eeg-preview-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .reselect-hint {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone:hover .reselect-hint {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+
+        /* 默认视图容器 */
+        .default-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            transition: opacity 0.3s ease;
+        }
+        
+        .default-view.hidden {
+            display: none;
+        }
+
+        .file-name {
+            margin-top: 16px;
+            padding: 12px 20px;
+            background: rgba(0, 242, 254, 0.1);
+            border-radius: 10px;
+            color: var(--primary);
+            font-weight: 500;
+            display: none;
+        }
+
+        .file-name.active {
+            display: block;
+        }
+
+        /* 生成按钮 */
+        .btn-generate {
+            width: 100%;
+            margin-top: 24px;
+            padding: 18px 32px;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            border: none;
+            border-radius: 14px;
+            color: #0a0a1a;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px var(--primary-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s;
+        }
+
+        .btn-generate:hover::before {
+            transform: translateX(100%);
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px var(--primary-glow);
+        }
+
+        .btn-generate:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 加载状态 */
+        .loading-container {
+            display: none;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .loading-container.active {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .loading-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 48px;
+            text-align: center;
+            justify-content: center; /* 内容垂直居中 */
+        }
+
+        .brain-animation {
+            width: 120px; height: 120px;
+            margin: 0 auto 32px;
+            position: relative;
+        }
+
+        .brain-pulse {
+            position: absolute;
+            inset: 0;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: pulse-ring 2s ease infinite;
+        }
+
+        .brain-pulse:nth-child(2) { animation-delay: 0.5s; }
+        .brain-pulse:nth-child(3) { animation-delay: 1s; }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .brain-core {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px; height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px var(--primary-glow);
+        }
+
+        .brain-core svg {
+            width: 32px; height: 32px;
+            color: #0a0a1a;
+        }
+
+        .loading-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .loading-status {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 3px;
+            width: 0%;
+            animation: progress-animate 60s linear forwards;
+        }
+
+        @keyframes progress-animate {
+            0% { width: 0%; }
+            50% { width: 60%; }
+            80% { width: 85%; }
+            100% { width: 95%; }
+        }
+
+        /* 结果区域 */
+        .result-container {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .result-container.active {
+            display: block;
+        }
+
+        /* 分析结果头部 */
+        .analysis-header {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .emotion-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .emotion-icon {
+            width: 80px; height: 80px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .emotion-icon.nervous { background: linear-gradient(135deg, #ff0080, #ff4d94); }
+        .emotion-icon.alert { background: linear-gradient(135deg, #00f2fe, #4facfe); }
+        .emotion-icon.relaxed { background: linear-gradient(135deg, #00ff88, #00cc6a); }
+
+        .emotion-label {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .emotion-sublabel {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .relaxation-meter {
+            text-align: center;
+        }
+
+        .meter-value {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .meter-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        .gauge-container {
+            margin-top: 16px;
+        }
+
+        .gauge-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .gauge-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0080, #ff6b35, #ffd93d, #00ff88, #00f2fe);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .prompt-display {
+            text-align: right;
+        }
+
+        .prompt-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .prompt-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        /* 音乐卡片网格 */
+        .music-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .music-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .music-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .music-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .track-number {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0a0a1a;
+        }
+
+        .track-info h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 280px;
+        }
+
+        .track-meta {
+            display: flex;
+            gap: 12px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .track-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 可视化器 */
+        .visualizer-container {
+            margin-bottom: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border);
+        }
+
+        .visualizer-canvas {
+            width: 100%;
+            height: 80px;
+            display: block;
+        }
+
+        /* 音频播放器 */
+        audio {
+            width: 100%;
+            height: 44px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            filter: invert(1) hue-rotate(180deg);
+            opacity: 0.9;
+        }
+
+        /* 下载按钮 */
+        .download-btn {
+            width: 100%;
+            padding: 14px;
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 12px;
+            color: var(--primary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .download-btn:hover {
+            background: rgba(0, 242, 254, 0.2);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        /* 操作区 */
+        .action-bar {
+            text-align: center;
+        }
+
+        .btn-reset {
+            padding: 16px 48px;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset:hover {
+            background: var(--glass);
+            color: var(--text-primary);
+            border-color: var(--primary);
+        }
+
+        /* 输入框隐藏 */
+        input[type="file"] { display: none; }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .music-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .analysis-header {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .prompt-display {
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .upload-card { padding: 32px 24px; }
+            .drop-zone { padding: 32px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="neuralBackground"></canvas>
+
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.5 3C9.5 3 9.5 5 11 5C12.5 5 12.5 3 12.5 3M9.5 3C7.5 3 5 4.5 5 8C5 10 6 11 6 13C6 15 5 16 5 18C5 20.5 7.5 22 9.5 22M12.5 3C14.5 3 17 4.5 17 8C17 10 16 11 16 13C16 15 17 16 17 18C17 20.5 14.5 22 12.5 22"></path>
+                    </svg>
+                </div>
+                <h1>NeuroBeats</h1>
+            </div>
+            <div class="tagline">AI-Powered EEG Music Synthesis Laboratory</div>
+        </header>
+
+        <main class="main-content">
+            <!-- 步骤指示器 -->
+            <div class="steps-container" id="stepsIndicator">
+                <div class="step-item active">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Upload Signal</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Analyze Emotion</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Play Music</div>
+                </div>
+            </div>
+
+            <div class="dashboard-row">
+                <!-- 左侧仪表盘 -->
+                <div class="floating-widget left">
+                    <div class="tech-corner tl"></div>
+                    <div class="tech-corner tr"></div>
+                    <div class="tech-corner bl"></div>
+                    <div class="tech-corner br"></div>
+                    
+                    <div class="widget-section">
+                        <div class="widget-title">SYSTEM METRICS</div>
+                        <div class="data-group">
+                            <div class="data-row">
+                                <span>NEURAL LOAD</span>
+                                <span class="data-value">42%</span>
+                            </div>
+                            <div class="data-bar-bg">
+                                <div class="data-bar-fill" style="width: 42%; animation: pulse-width 3s infinite alternate;"></div>
+                            </div>
+                        </div>
+                        <div class="data-group" style="margin-top: 15px;">
+                            <div class="data-row">
+                                <span>MEMORY</span>
+                                <span class="data-value">12.4 GB</span>
+                            </div>
+                            <div class="data-bar-bg">
+                                <div class="data-bar-fill" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                        <div class="data-group" style="margin-top: 15px;">
+                            <div class="data-row">
+                                <span>LATENCY</span>
+                                <span class="data-value">14ms</span>
+                            </div>
+                            <div class="mini-visualizer">
+                                <div class="visualizer-bar" style="animation-duration: 0.5s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.7s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.4s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.6s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.8s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.5s"></div>
+                                <div class="visualizer-bar" style="animation-duration: 0.3s"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 中间内容区 -->
+                <div class="center-panel">
+                    <!-- 上传区域 -->
+                    <div class="upload-card" id="uploadCard">
+                        <div class="status-badge top-right">
+                            <div class="status-dot"></div>
+                            SYSTEM READY
+                        </div>
+                        <div class="status-badge bottom-left">
+                            <div class="status-dot green-glow"></div>
+                            NEURAL ENGINE
+                        </div>
+
+                        <div class="drop-zone" id="dropZone">
+                            <div class="drop-bg-pattern"></div>
+                            <div class="radar-scan"></div> <!-- 雷达扫描层 -->
+                            
+                            <!-- 默认视图 -->
+                            <div class="default-view" id="defaultView">
+                                <div class="drop-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                </div>
+                                <div class="drop-text">Drag & Drop EEG File Here</div>
+                                <div class="drop-hint">Or click to select · Supports .csv format (16 channels)</div>
+                            </div>
+
+                            <!-- 文件已选择视图 -->
+                            <div class="file-selected-view" id="fileSelectedView">
+                                <div class="file-icon-large" style="display: none;">📄</div> <!-- 隐藏大图标，改用波形 -->
+                                <div class="eeg-preview-container">
+                                    <canvas id="eegPreviewCanvas" class="eeg-preview-canvas"></canvas>
+                                </div>
+                                <div class="selected-filename" id="selectedFilename">filename.csv</div>
+                                <div class="reselect-hint">Click to change file</div>
+                            </div>
+
+                            <input type="file" id="fileInput" accept=".csv">
+                        </div>
+                        <button class="btn-generate" id="generateBtn" onclick="processFile()" disabled style="opacity: 0.5; cursor: not-allowed;">
+                            🎵 Generate Personalized Music
+                        </button>
+                    </div>
+
+                    <!-- 加载状态 -->
+                    <div class="loading-container" id="loadingContainer">
+                        <div class="loading-card">
+                            <div class="brain-animation">
+                                <div class="brain-pulse"></div>
+                                <div class="brain-pulse"></div>
+                                <div class="brain-pulse"></div>
+                                <div class="brain-core">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9.5 3C7.5 3 5 4.5 5 8C5 10 6 11 6 13C6 15 5 16 5 18C5 20.5 7.5 22 9.5 22"></path>
+                                        <path d="M12.5 3C14.5 3 17 4.5 17 8C17 10 16 11 16 13C16 15 17 16 17 18C17 20.5 14.5 22 12.5 22"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="loading-title">Analyzing EEG Signal</div>
+                            <div class="loading-status" id="loadingStatus">Initializing neural network...</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 结果区域 -->
+                    <!-- 注意：结果区域可能需要更宽的显示空间。在这里它被限制在520px宽的center-panel里。
+                         如果需要结果显示时变得很宽，可以通过JS控制center-panel的宽度样式。-->
+                    <div class="result-container" id="resultContainer">
+                        <!-- 分析头部 -->
+                        <div class="analysis-header">
+                            <div class="emotion-badge">
+                                <div class="emotion-icon" id="emotionIcon">😌</div>
+                                <div class="emotion-label" id="emotionLabel">--</div>
+                                <div class="emotion-sublabel" id="emotionSublabel">--</div>
+                            </div>
+                            
+                            <div class="relaxation-meter">
+                                <div class="meter-value" id="rValue">0.000</div>
+                                <div class="meter-label">Confidence</div>
+                                <div class="gauge-container">
+                                    <div class="gauge-bar">
+                                        <div class="gauge-fill" id="gaugeFill"></div>
+                                    </div>
+                                    <div class="gauge-labels">
+                                        <span>Low</span>
+                                        <span>Mid</span>
+                                        <span>High</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="prompt-display">
+                                <div class="prompt-label">Generation Prompt</div>
+                                <div class="prompt-text" id="promptText">--</div>
+                            </div>
+                        </div>
+
+                        <!-- 音乐卡片 -->
+                        <div class="music-grid" id="musicGrid">
+                            <!-- 动态生成 -->
+                        </div>
+
+                        <!-- 操作区 -->
+                        <div class="action-bar">
+                            <button class="btn-reset" onclick="resetApp()">
+                                ↺ Analyze New File
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧仪表盘 -->
+                <div class="floating-widget right">
+                    <div class="tech-corner tl"></div>
+                    <div class="tech-corner tr"></div>
+                    <div class="tech-corner bl"></div>
+                    <div class="tech-corner br"></div>
+
+                    <div class="widget-section">
+                        <div class="widget-title">AUDIO ENGINE</div>
+                        <div class="data-group">
+                            <div class="data-row">
+                                <span>SAMPLE RATE</span>
+                                <span class="data-value">48.0 kHz</span>
+                            </div>
+                        </div>
+                        <div class="data-group" style="margin-top: 10px;">
+                            <div class="data-row">
+                                <span>BIT DEPTH</span>
+                                <span class="data-value">24 BIT</span>
+                            </div>
+                        </div>
+                        <div class="data-group" style="margin-top: 20px;">
+                            <div class="data-row">
+                                <span>DSP MODULE</span>
+                                <span class="data-value" style="color: var(--accent-green)">ACTIVE</span>
+                            </div>
+                            <div class="data-bar-bg" style="margin-top: 5px;">
+                                <div class="data-bar-fill" style="width: 100%; background: var(--accent-green);"></div>
+                            </div>
+                        </div>
+                        <div class="data-group" style="margin-top: 20px;">
+                            <div class="widget-title" style="font-size: 0.7rem; color: var(--text-muted);">OUTPUT SPECTRUM</div>
+                            <div class="mini-visualizer">
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.6s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.9s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.4s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.7s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.5s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.8s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.6s"></div>
+                                <div class="visualizer-bar" style="background: var(--secondary); animation-duration: 0.3s"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- End Dashboard Row -->
+
+        </main>
+    </div>
+
+<script>
+    // ==================== 粒子背景 ====================
+    const canvas = document.getElementById('neuralBackground');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const particles = [];
+    // 增加粒子数量
+    const particleCount = 100;
+
+    class Particle {
+        constructor() {
+            this.reset();
+        }
+        
+        reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * 0.4;
+            this.vy = (Math.random() - 0.5) * 0.4;
+            this.radius = Math.random() * 2 + 1;
+            this.opacity = Math.random() * 0.5 + 0.2;
+        }
+        
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            
+            if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+            if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+        }
+        
+        
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0, 242, 254, ${this.opacity})`;
+            ctx.fill();
+        }
+    }
+
+    // 鼠标交互
+    let mouse = { x: null, y: null };
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+    window.addEventListener('mouseout', () => {
+        mouse.x = null;
+        mouse.y = null;
+    });
+
+    // 初始化粒子
+    for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+    }
+
+    function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < 150) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(0, 242, 254, ${(1 - dist / 150) * 0.15})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                }
+            }
+
+            // 鼠标连接
+            if (mouse.x && mouse.y) {
+                const dx = particles[i].x - mouse.x;
+                const dy = particles[i].y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < 200) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(255, 0, 128, ${(1 - dist / 200) * 0.2})`; // 鼠标连接线颜色略有不同
+                    ctx.lineWidth = 0.8;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+        
+        drawConnections();
+        requestAnimationFrame(animate);
+    }
+    animate();
+
+    // ==================== 文件处理 ====================
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const defaultView = document.getElementById('defaultView');
+    const fileSelectedView = document.getElementById('fileSelectedView');
+    const selectedFilename = document.getElementById('selectedFilename');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        updateFileName();
+    });
+    
+    fileInput.addEventListener('change', updateFileName);
+
+    function updateFileName() {
+        if (fileInput.files.length > 0) {
+            // 切换视图
+            defaultView.classList.add('hidden');
+            fileSelectedView.classList.add('active');
+            selectedFilename.textContent = fileInput.files[0].name;
+            
+            // 绘制 EEG 预览波形
+            drawSparklines();
+            
+            // 更新状态
+            dropZone.style.borderColor = 'var(--accent-green)';
+            dropZone.style.background = 'rgba(0, 255, 136, 0.05)';
+            
+            // 启用按钮
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+            generateBtn.style.cursor = 'pointer';
+            
+            // 更新步骤条：步骤1完成，步骤2待命
+             const steps = document.querySelectorAll('.step-item');
+             steps[0].classList.add('completed');
+             steps[0].querySelector('.step-circle').textContent = '✓';
+             steps[1].classList.add('active'); // 视觉上的 "Current Focus"
+
+        } else {
+            // 恢复默认
+            defaultView.classList.remove('hidden');
+            fileSelectedView.classList.remove('active');
+            dropZone.style.borderColor = 'var(--glass-border)';
+            dropZone.style.background = 'transparent';
+            
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.style.opacity = '0.5';
+            generateBtn.style.cursor = 'not-allowed';
+            
+            // 重置步骤条
+            resetSteps();
+        }
+    }
+
+    function resetSteps() {
+        const steps = document.querySelectorAll('.step-item');
+        steps.forEach((step, idx) => {
+             step.classList.remove('active', 'completed');
+             step.querySelector('.step-circle').textContent = idx + 1;
+        });
+        steps[0].classList.add('active');
+    }
+
+    function drawSparklines() {
+        const cvs = document.getElementById('eegPreviewCanvas');
+        if (!cvs) return;
+        const cx = cvs.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = cvs.getBoundingClientRect();
+        
+        cvs.width = rect.width * dpr;
+        cvs.height = rect.height * dpr;
+        cx.scale(dpr, dpr);
+        
+        const w = rect.width;
+        const h = rect.height;
+
+        cx.clearRect(0, 0, w, h);
+        cx.strokeStyle = '#00f2fe';
+        cx.lineWidth = 1.5;
+        
+        const channels = 4;
+        const padding = 12; // 增加留白防止截断
+        const usableHeight = h - (padding * 2);
+        const rowHeight = usableHeight / channels;
+        
+        for(let c=0; c<channels; c++) {
+            cx.beginPath();
+            let yBase = padding + c * rowHeight + rowHeight/2;
+            cx.moveTo(0, yBase);
+            // 增加控制点，模拟平滑
+            for(let x=0; x<w; x+=2) {
+                const noise = (Math.random() - 0.5) * 12; 
+                cx.lineTo(x, yBase + noise);
+            }
+            cx.stroke();
+        }
+        
+        // 边缘渐变遮罩
+        const gradient = cx.createLinearGradient(0, 0, w, 0);
+        gradient.addColorStop(0, 'rgba(0,242,254,0)');
+        gradient.addColorStop(0.1, 'rgba(0,242,254,1)');
+        gradient.addColorStop(0.9, 'rgba(0,242,254,1)');
+        gradient.addColorStop(1, 'rgba(0,242,254,0)');
+        cx.globalCompositeOperation = 'destination-in';
+        cx.fillStyle = gradient;
+        cx.fillRect(0, 0, w, h);
+        cx.globalCompositeOperation = 'source-over';
+    }
+
+    // ==================== 主处理流程 ====================
+    async function processFile() {
+        if (fileInput.files.length === 0) {
+            alert('请先选择 EEG 文件！');
+            return;
+        }
+
+        const uploadCard = document.getElementById('uploadCard');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const loadingStatus = document.getElementById('loadingStatus');
+        const progressFill = document.getElementById('progressFill');
+
+        // 显示加载状态
+        // document.getElementById('stepsIndicator').style.display = 'none'; // Keep steps visible
+        updateStep(2); // Move to Step 2
+        uploadCard.classList.add('hidden');
+        loadingContainer.classList.add('active');
+        progressFill.style.animation = 'progress-animate 120s linear forwards';
+
+        // 状态消息轮换
+        const messages = [
+            'Reading EEG signal...',
+            'Applying Butterworth bandpass filter...',
+            'Invoking deep learning model...',
+            'Recognizing emotional state...',
+            'Generating music prompt from emotion...',
+            'Calling Suno API...',
+            'AI generating first track...',
+            'Downloading first music resource...',
+            'AI generating second track...',
+            'Downloading second music resource...',
+            'Rendering visualization waveform...',
+            'Almost complete...'
+        ];
+        let msgIdx = 0;
+        const msgInterval = setInterval(() => {
+            if (msgIdx < messages.length) {
+                loadingStatus.textContent = messages[msgIdx++];
+            }
+        }, 5000); // Slow down message rotation
+
+        // 提交请求
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const response = await fetch('/generate_from_eeg', {
+                method: 'POST',
+                body: formData
+            });
+            
+            clearInterval(msgInterval);
+            
+            // 先检查HTTP状态码
+            if (!response.ok) {
+                // 尝试解析错误信息
+                let errorMessage = `服务器错误 (${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // 如果无法解析为JSON，尝试读取文本
+                    const errorText = await response.text();
+                    if (errorText.includes('<!DOCTYPE') || errorText.includes('<html')) {
+                        errorMessage = `服务器返回了HTML页面而不是JSON响应，可能是路由配置错误 (状态码: ${response.status})`;
+                    } else {
+                        errorMessage = errorText || errorMessage;
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showResults(data);
+            } else {
+                throw new Error(data.error || '服务器返回错误');
+            }
+        } catch (error) {
+            clearInterval(msgInterval);
+            alert('处理失败: ' + error.message);
+            resetApp();
+        }
+    }
+
+    // ==================== 显示结果 ====================
+    function showResults(data) {
+        const loadingContainer = document.getElementById('loadingContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        const dashboardRow = document.querySelector('.dashboard-row');
+        
+        loadingContainer.classList.remove('active');
+        resultContainer.classList.add('active');
+        
+        // 启用全屏模式，隐藏侧边栏
+        dashboardRow.classList.add('fullscreen-mode');
+        
+        updateStep(3); // Move to Step 3
+
+        // 更新分析结果
+        const analysis = data.analysis;
+        // 使用最高概率作为置信度显示
+        const maxProb = Math.max(...Object.values(analysis.probabilities));
+        document.getElementById('rValue').textContent = maxProb.toFixed(3);
+        document.getElementById('gaugeFill').style.width = (maxProb * 100) + '%';
+        document.getElementById('promptText').textContent = `"${analysis.prompt}"`;
+
+        // 更新情绪显示
+        const emotionIcon = document.getElementById('emotionIcon');
+        const emotionLabel = document.getElementById('emotionLabel');
+        const emotionSublabel = document.getElementById('emotionSublabel');
+        
+        emotionLabel.textContent = analysis.emotion_label;
+        emotionLabel.style.color = analysis.emotion_color;
+        emotionSublabel.textContent = analysis.emotion;  // 修复：使用 emotion 而不是 emotion_state
+        
+        // 设置情绪图标和样式
+        emotionIcon.className = 'emotion-icon';
+        if (analysis.emotion === 'Nervous') {
+            emotionIcon.textContent = '😥';
+            emotionIcon.classList.add('nervous');
+        } else if (analysis.emotion === 'Alert') {
+            emotionIcon.textContent = '😐';
+            emotionIcon.classList.add('alert');
+        } else {
+            emotionIcon.textContent = '😊';
+            emotionIcon.classList.add('relaxed');
+        }
+
+        // 生成音乐卡片
+        const musicGrid = document.getElementById('musicGrid');
+        musicGrid.innerHTML = '';
+        
+        data.music.forEach((music, idx) => {
+            const card = createMusicCard(music, idx);
+            musicGrid.appendChild(card);
+        });
+    }
+
+    function createMusicCard(music, idx) {
+        const card = document.createElement('div');
+        card.className = 'music-card';
+        
+        const duration = music.duration ? `${Math.floor(music.duration / 60)}:${String(Math.floor(music.duration % 60)).padStart(2, '0')}` : '--:--';
+        const size = music.size ? `${music.size.toFixed(1)} KB` : '--';
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="track-number">${music.id}</div>
+                <div class="track-info">
+                    <h3>${music.title}</h3>
+                    <div class="track-meta">
+                        <span>⏱ ${duration}</span>
+                        <span>📁 ${size}</span>
+                        <span>🎭 ${music.emotion}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="visualizer-container">
+                <canvas class="visualizer-canvas" id="visualizer${idx}"></canvas>
+            </div>
+            <audio controls id="audio${idx}" crossorigin="anonymous">
+                <source src="${music.download_url}" type="audio/mpeg">
+            </audio>
+            <a href="${music.download_url}" class="download-btn" download>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download MP3
+            </a>
+        `;
+        
+        // 设置可视化器
+        setTimeout(() => {
+            const audio = document.getElementById(`audio${idx}`);
+            const canvas = document.getElementById(`visualizer${idx}`);
+            setupVisualizer(audio, canvas);
+        }, 100);
+        
+        return card;
+    }
+
+    // ==================== 音频可视化 ====================
+    const audioContexts = new Map();
+
+    function setupVisualizer(audioElement, canvasElement) {
+        if (!canvasElement) return;
+        
+        const canvasCtx = canvasElement.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvasElement.getBoundingClientRect();
+        canvasElement.width = rect.width * dpr;
+        canvasElement.height = rect.height * dpr;
+        canvasCtx.scale(dpr, dpr);
+        
+        let audioContext, analyser, source;
+        let animationId;
+        
+        audioElement.addEventListener('play', () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                source = audioContext.createMediaElementSource(audioElement);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.8;
+            }
+            
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+                
+                const width = rect.width;
+                const height = rect.height;
+                
+                canvasCtx.clearRect(0, 0, width, height);
+                
+                const barWidth = width / bufferLength * 2;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * height * 0.8;
+                    
+                    const gradient = canvasCtx.createLinearGradient(0, height, 0, height - barHeight);
+                    gradient.addColorStop(0, '#00f2fe');
+                    gradient.addColorStop(1, '#4facfe');
+                    
+                    canvasCtx.fillStyle = gradient;
+                    canvasCtx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+                    
+                    x += barWidth;
+                }
+            }
+            
+            draw();
+        });
+        
+        audioElement.addEventListener('pause', () => {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        });
+    }
+
+    // ==================== 重置应用 ====================
+    function resetApp() {
+        // 停止所有音频
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.src = '';
+        });
+
+        // 隐藏结果和加载区域
+        document.getElementById('loadingContainer').classList.remove('active');
+        document.getElementById('resultContainer').classList.remove('active');
+        
+        // 移除全屏模式，恢复侧边栏
+        document.querySelector('.dashboard-row').classList.remove('fullscreen-mode');
+        
+        // 显示上传区域
+        // document.getElementById('stepsIndicator').style.display = 'flex'; 
+        updateStep(1); // Reset to Step 1
+        document.getElementById('uploadCard').classList.remove('hidden');
+        
+        // 清除文件
+        fileInput.value = '';
+        updateFileName(); // 复用更新逻辑来重置视图 (including disable btn)
+        resetSteps(); // 具体重置步骤
+        
+        // 重置进度条
+        const progressFill = document.getElementById('progressFill');
+        progressFill.style.animation = 'none';
+        progressFill.offsetHeight; // 触发重排
+        progressFill.style.width = '0%';
+    }
+
+    // 步骤更新函数
+    function updateStep(stepNum) {
+        const steps = document.querySelectorAll('.step-item');
+        steps.forEach((step, index) => {
+            const currentStep = index + 1;
+            step.classList.remove('active', 'completed');
+            
+            if (currentStep < stepNum) {
+                step.classList.add('completed');
+                step.querySelector('.step-circle').textContent = '✓';
+            } else if (currentStep === stepNum) {
+                step.classList.add('active');
+                step.querySelector('.step-circle').textContent = currentStep;
+            } else {
+                step.querySelector('.step-circle').textContent = currentStep;
+            }
+        });
+    }
+
+    // 动态更新模拟数据 (增强抖动)
+    setInterval(() => {
+        // 更新左侧数值 - 神经负载非线性抖动
+        const baseLoad = 40;
+        const jitter = (Math.random() - 0.5) * 15; // +/- 7.5% jitter
+        const load = Math.floor(baseLoad + jitter);
+        
+        document.querySelectorAll('.data-value')[0].innerText = load + '%';
+        document.querySelectorAll('.data-bar-fill')[0].style.width = load + '%';
+
+        const latency = Math.floor(Math.random() * 5) + 12; // 12-17ms
+        document.querySelectorAll('.data-value')[2].innerText = latency + 'ms';
+    }, 800); // Faster update for jitter effect
+</script>
+
+</body>
+</html>
