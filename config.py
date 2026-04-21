@@ -11,7 +11,7 @@
 
 # Suno API 密钥
 # 获取地址: https://sunoapi.org/api-key
-SUNO_API_KEY = "63032681a849d46d14459beb7b155377"
+SUNO_API_KEY = "your-token"
 
 # API 基础 URL
 SUNO_API_BASE_URL = "https://api.sunoapi.org"
